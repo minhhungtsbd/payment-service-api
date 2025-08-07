@@ -21,6 +21,7 @@ export class VCBBankService extends Gate {
   private clientId: string | null = null;
   private lastLoginTime: number = 0;
   private error108Count: number = 0;
+  private lastError: string | null = null;
   private readonly userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
   private readonly browserVersion = 'Chrome 120.0.0.0';
 
@@ -159,9 +160,16 @@ export class VCBBankService extends Gate {
       this.clientId = loginRes.userInfo?.clientId;
       this.lastLoginTime = Date.now();
       this.error108Count = 0; // Reset error count on successful login
-      console.log('VCB Login successful');
+      this.lastError = null; // Clear last error on successful login
+      console.log(`VCB Login successful for account: ${this.config.account}`);
+      console.log(`Session ID: ${this.sessionId?.substring(0, 8)}...`);
+      console.log(`CIF: ${this.cif}, Mobile ID: ${this.mobileId}`);
+      console.log(`Device ID: ${this.config.device_id?.substring(0, 8)}...`);
     } else {
-      throw new Error(`VCB Login failed: ${loginRes.code} - ${loginRes.des || 'Unknown error'}`);
+      const errorMsg = `VCB Login failed: ${loginRes.code} - ${loginRes.des || 'Unknown error'}`;
+      this.lastError = errorMsg;
+      console.error(errorMsg);
+      throw new Error(errorMsg);
     }
   }
 
@@ -217,7 +225,10 @@ export class VCBBankService extends Gate {
       if (!data || data.code !== undefined) {
         if (data?.code === '108') {
           this.error108Count++;
-          console.warn(`VCB Multiple Device Access Detected (${this.error108Count}/3) - Implementing recovery strategy`);
+          const errorMsg = `VCB Multiple Device Access Detected (${this.error108Count}/3) - Account: ${this.config.account}`;
+          this.lastError = errorMsg;
+          console.warn(errorMsg);
+          console.warn('VCB Error Details:', data);
           
           // Clear all session data
           this.sessionId = null;
@@ -232,16 +243,27 @@ export class VCBBankService extends Gate {
           
           // If we've had too many 108 errors, suggest manual intervention
           if (this.error108Count >= 3) {
-            console.error('Multiple VCB 108 errors detected. Consider:');
+            console.error('=== VCB TROUBLESHOOTING REQUIRED ===');
+            console.error(`Account: ${this.config.account}`);
+            console.error(`Device ID: ${this.config.device_id}`);
+            console.error(`Login ID: ${this.config.login_id}`);
+            console.error('Suggested actions:');
             console.error('1. Check if VCB account is being used elsewhere');
             console.error('2. Wait 5-10 minutes before restarting');
-            console.error('3. Consider using a different device_id in config');
+            console.error('3. Generate new device_id: /gateways/vcb-test');
+            console.error('4. Verify VCB credentials in config.yml');
+            console.error('====================================');
           }
         } else if (data?.code === '005') {
-          console.warn('VCB Session expired - Will re-login');
+          const errorMsg = 'VCB Session expired - Will re-login';
+          this.lastError = errorMsg;
+          console.warn(errorMsg);
           this.sessionId = null;
         } else {
-          console.warn(`VCB API error ${data?.code}:`, data?.des || 'Unknown error');
+          const errorMsg = `VCB API error ${data?.code}: ${data?.des || 'Unknown error'}`;
+          this.lastError = errorMsg;
+          console.warn(errorMsg);
+          console.warn('Full VCB Error:', data);
         }
         return [];
       }
@@ -249,6 +271,7 @@ export class VCBBankService extends Gate {
       // Handle cases where transactions might be undefined or null
       if (!data.transactions || !Array.isArray(data.transactions)) {
         console.warn('VCB API returned no transaction data');
+        console.warn('Response structure:', Object.keys(data));
         return [];
       }
 
@@ -263,21 +286,33 @@ export class VCBBankService extends Gate {
           account_receiver: this.config.account,
         }));
 
+      if (payments.length > 0) {
+        console.log(`VCB Success: Retrieved ${payments.length} transactions for account ${this.config.account}`);
+        this.lastError = null; // Clear error on successful transaction fetch
+      } else {
+        console.log(`VCB Info: No new transactions found for account ${this.config.account}`);
+      }
+
       return payments;
     } catch (error) {
-      console.error('Error while fetching transaction history:', error);
+      const errorMsg = `VCB Error fetching transactions: ${error.message}`;
+      this.lastError = errorMsg;
+      console.error(errorMsg);
+      console.error('Full error:', error);
 
       if (
         error.message.includes(
           'Client network socket disconnected before secure TLS connection was established',
         )
       ) {
+        console.log('Network issue detected, waiting 10s...');
         await sleep(10000);
       } else {
+        console.log('Clearing session due to error');
         this.sessionId = null;
       }
 
-      throw new Error('Error while fetching transaction history');
+      throw new Error(errorMsg);
     }
   }
 }
