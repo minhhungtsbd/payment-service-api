@@ -19,6 +19,23 @@ export class VCBBankService extends Gate {
   private cif: string | null = null;
   private mobileId: string | null = null;
   private clientId: string | null = null;
+  private lastLoginTime: number = 0;
+  private error108Count: number = 0;
+  private readonly userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  private readonly browserVersion = 'Chrome 120.0.0.0';
+
+  /**
+   * Generate a new device ID to help avoid VCB error 108
+   * Call this method if you're getting persistent multiple device access errors
+   */
+  generateNewDeviceId(): string {
+    const timestamp = Date.now().toString();
+    const random = Math.random().toString(36).substring(2, 15);
+    const deviceId = crypto.createHash('md5').update(timestamp + random + this.config.login_id).digest('hex');
+    console.log('Generated new VCB device ID:', deviceId);
+    console.log('Update your config.yml with: device_id:', deviceId);
+    return deviceId;
+  }
 
   getAgent() {
     if (this.proxy != null) {
@@ -48,12 +65,20 @@ export class VCBBankService extends Gate {
               String(parseInt((100 * Math.random()).toString())),
             'X-Channel': 'Web',
             'X-Lim-ID': this.encrypt.sha256(this.config.login_id + '1236q93-@u9'),
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.5666.197 Safari/537.36',
+            'User-Agent': this.userAgent,
             Accept: 'application/json',
-            'Accept-Language': 'vi',
+            'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.8',
             'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin',
             Referer: 'https://vcbdigibank.vietcombank.com.vn/',
+            Origin: 'https://vcbdigibank.vietcombank.com.vn',
           },
           httpsAgent: this.getAgent(),
         },
@@ -86,8 +111,17 @@ export class VCBBankService extends Gate {
       {
         responseType: 'arraybuffer',
         headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
+          'User-Agent': this.userAgent,
+          'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+          'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.8',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+          'Sec-Ch-Ua-Mobile': '?0',
+          'Sec-Ch-Ua-Platform': '"Windows"',
+          'Sec-Fetch-Dest': 'image',
+          'Sec-Fetch-Mode': 'no-cors',
+          'Sec-Fetch-Site': 'same-origin',
           Referer: 'https://vcbdigibank.vietcombank.com.vn/',
         },
       },
@@ -113,7 +147,7 @@ export class VCBBankService extends Gate {
         E: null,
         sessionId: null,
         DT: 'Windows',
-        PM: 'Chrome 126.0.0.0',
+        PM: this.browserVersion,
         OV: '10',
         appVersion: '',
       },
@@ -123,6 +157,11 @@ export class VCBBankService extends Gate {
       this.cif = loginRes.userInfo?.cif;
       this.mobileId = loginRes.userInfo?.mobileId;
       this.clientId = loginRes.userInfo?.clientId;
+      this.lastLoginTime = Date.now();
+      this.error108Count = 0; // Reset error count on successful login
+      console.log('VCB Login successful');
+    } else {
+      throw new Error(`VCB Login failed: ${loginRes.code} - ${loginRes.des || 'Unknown error'}`);
     }
   }
 
@@ -155,7 +194,7 @@ export class VCBBankService extends Gate {
           E: null,
           sessionId: this.sessionId,
           DT: 'Windows',
-          PM: 'Chrome 126.0.0.0',
+          PM: this.browserVersion,
           OV: '10',
           appVersion: '',
         },
@@ -177,11 +216,32 @@ export class VCBBankService extends Gate {
       // Handle VCB error responses
       if (!data || data.code !== undefined) {
         if (data?.code === '108') {
-          console.warn('VCB Multiple Device Access Detected - Account locked temporarily');
-          this.sessionId = null; // Clear session to force fresh login
-          await sleep(30000); // Wait 30 seconds before next attempt
+          this.error108Count++;
+          console.warn(`VCB Multiple Device Access Detected (${this.error108Count}/3) - Implementing recovery strategy`);
+          
+          // Clear all session data
+          this.sessionId = null;
+          this.cif = null;
+          this.mobileId = null;
+          this.clientId = null;
+          
+          // Progressive backoff strategy
+          const waitTime = Math.min(30000 + (this.error108Count * 15000), 120000); // Max 2 minutes
+          console.log(`Waiting ${waitTime/1000}s before retry...`);
+          await sleep(waitTime);
+          
+          // If we've had too many 108 errors, suggest manual intervention
+          if (this.error108Count >= 3) {
+            console.error('Multiple VCB 108 errors detected. Consider:');
+            console.error('1. Check if VCB account is being used elsewhere');
+            console.error('2. Wait 5-10 minutes before restarting');
+            console.error('3. Consider using a different device_id in config');
+          }
+        } else if (data?.code === '005') {
+          console.warn('VCB Session expired - Will re-login');
+          this.sessionId = null;
         } else {
-          console.warn('VCB API returned error:', data);
+          console.warn(`VCB API error ${data?.code}:`, data?.des || 'Unknown error');
         }
         return [];
       }
