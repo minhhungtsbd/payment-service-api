@@ -174,9 +174,21 @@ export class VCBBankService extends Gate {
           .toDate();
       };
 
+      // Handle VCB error responses
+      if (!data || data.code !== undefined) {
+        if (data?.code === '108') {
+          console.warn('VCB Multiple Device Access Detected - Account locked temporarily');
+          this.sessionId = null; // Clear session to force fresh login
+          await sleep(30000); // Wait 30 seconds before next attempt
+        } else {
+          console.warn('VCB API returned error:', data);
+        }
+        return [];
+      }
+
       // Handle cases where transactions might be undefined or null
-      if (!data || !data.transactions || !Array.isArray(data.transactions)) {
-        console.warn('VCB API returned invalid transaction data:', data);
+      if (!data.transactions || !Array.isArray(data.transactions)) {
+        console.warn('VCB API returned no transaction data');
         return [];
       }
 
