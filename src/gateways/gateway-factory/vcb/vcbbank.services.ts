@@ -36,28 +36,46 @@ export class VCBBankService extends Gate {
     });
   }
 
-  private async makeRequest<T>(path: string, body: any) {
-    const { data } = await axios.post(
-      'https://digiapp.vietcombank.com.vn' + path,
-      this.encrypt.encryptRequest(body),
-      {
-        headers: {
-          'X-Request-ID':
-            String(new Date().getTime()) +
-            String(parseInt((100 * Math.random()).toString())),
-          'X-Channel': 'Web',
-          'X-Lim-ID': this.encrypt.sha256(this.config.login_id + '1236q93-@u9'),
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.5666.197 Safari/537.36',
-          Accept: 'application/json',
-          'Accept-Language': 'vi',
-          'Content-Type': 'application/json',
-          Referer: 'https://vcbdigibank.vietcombank.com.vn/',
+  private async makeRequest<T>(path: string, body: any): Promise<T> {
+    try {
+      const { data } = await axios.post(
+        'https://digiapp.vietcombank.com.vn' + path,
+        this.encrypt.encryptRequest(body),
+        {
+          headers: {
+            'X-Request-ID':
+              String(new Date().getTime()) +
+              String(parseInt((100 * Math.random()).toString())),
+            'X-Channel': 'Web',
+            'X-Lim-ID': this.encrypt.sha256(this.config.login_id + '1236q93-@u9'),
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.5666.197 Safari/537.36',
+            Accept: 'application/json',
+            'Accept-Language': 'vi',
+            'Content-Type': 'application/json',
+            Referer: 'https://vcbdigibank.vietcombank.com.vn/',
+          },
+          httpsAgent: this.getAgent(),
         },
-        httpsAgent: this.getAgent(),
-      },
-    );
-    return JSON.parse(this.encrypt.decryptResponse(data)) as T;
+      );
+      
+      if (!data) {
+        throw new Error('Empty response from VCB API');
+      }
+      
+      const decryptedResponse = this.encrypt.decryptResponse(data);
+      if (!decryptedResponse) {
+        throw new Error('Failed to decrypt VCB response');
+      }
+      
+      return JSON.parse(decryptedResponse) as T;
+    } catch (error) {
+      if (error.message?.includes('Encrypted message length is invalid')) {
+        console.warn('VCB encryption error - session may be expired');
+        this.sessionId = null; // Force re-login on next attempt
+      }
+      throw error;
+    }
   }
   private async login() {
     // get captcha image and convert to base64
@@ -156,8 +174,14 @@ export class VCBBankService extends Gate {
           .toDate();
       };
 
+      // Handle cases where transactions might be undefined or null
+      if (!data || !data.transactions || !Array.isArray(data.transactions)) {
+        console.warn('VCB API returned invalid transaction data:', data);
+        return [];
+      }
+
       const payments = data.transactions
-        .filter((t) => t.CD === '+')
+        .filter((t) => t && t.CD === '+')
         .map((t) => ({
           transaction_id: 'vcbbank-' + t.Reference,
           content: t.Description,
