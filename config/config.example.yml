@@ -1,0 +1,103 @@
+# Payment Service Configuration Example
+# Copy this file to config.yml and fill in your actual credentials
+
+# Bot notifications (Optional)
+bots:
+  notification_telegram_bot:
+    type: "TELEGRAM"
+    name: "Payment Notification Bot"
+    token: "your_telegram_bot_token"  # Get from @BotFather
+    chat_chanel_id: "your_chat_id"   # Your Telegram chat/group ID
+    conditions:
+      content_regex: ".*?"           # Regex to match transaction content
+      account_regex: ".*?"           # Regex to match account numbers
+    # Admin IDs that can use /stopCron and /startCron commands
+    admin_ids:
+      - "your_admin_user_id"
+  
+  # Discord bot example (Optional)
+  # discord_bot:
+  #   type: "DISCORD"
+  #   name: "Discord Payment Bot"
+  #   token: "your_discord_bot_token"
+  #   chat_chanel_id: "your_discord_channel_id"
+  #   conditions:
+  #     content_regex: ".*TRANSFER.*"
+  #     account_regex: ".*"
+
+# Proxy configuration (Optional)
+proxies:
+  # Example proxy configuration
+  # proxy_list_1:
+  #   - "http://username:password@proxy1.example.com:8080"
+  #   - "http://username:password@proxy2.example.com:8080"
+  #   - "socks5://username:password@proxy3.example.com:1080"
+
+# Webhook notifications (Optional)
+webhooks:
+  # Example webhook for external system integration
+  # - name: "external_payment_system"
+  #   url: "https://your-system.com/api/webhooks/payments"
+  #   token: "your_webhook_secret_token"
+  #   conditions:
+  #     content_regex: ".*TRANSFER.*"  # Only send transfer transactions
+  #     account_regex: "99091.*"       # Only for specific account pattern
+
+# Bank gateway configurations (Required)
+gateways:
+  # VCB Bank example
+  vcb_bank_1:
+    type: 'VCBBANK'
+    name: 'VCB Bank Account 1'
+    password: 'your_vcb_password'
+    account: 'your_account_number'
+    login_id: 'your_phone_or_username'
+    device_id: 'your_device_id'  # Get from mobile app or browser
+    repeat_interval_in_sec: 30
+    # Optional proxy list (reference to proxies section)
+    proxy: []  # e.g., ["proxy_list_1"]
+  
+  # MB Bank example (Commented out)
+  # mb_bank_1:
+  #   type: 'MBBANK'
+  #   name: 'MB Bank Account 1'
+  #   password: 'your_mb_password'
+  #   account: 'your_account_number'
+  #   login_id: 'your_phone_number'
+  #   device_id: 'your_device_id'
+  #   repeat_interval_in_sec: 30
+  #   proxy: []
+  
+  # ACB Bank example (Commented out)
+  # acb_bank_1:
+  #   type: 'ACBBANK'
+  #   name: 'ACB Bank Account 1'
+  #   password: 'your_acb_password'
+  #   account: 'your_account_number'
+  #   login_id: 'your_login_id'
+  #   repeat_interval_in_sec: 30
+  #   proxy: []
+  
+  # TPBank example (Commented out)
+  # tpbank_1:
+  #   type: 'TPBANK'
+  #   name: 'TPBank Account 1'
+  #   password: 'your_tpbank_password'
+  #   account: 'your_account_number'
+  #   login_id: 'your_login_id'
+  #   repeat_interval_in_sec: 30
+  #   proxy: []
+
+# Configuration Notes:
+# 1. Copy this file to config.yml: cp config/config.example.yml config/config.yml
+# 2. Fill in your actual bank credentials
+# 3. Configure bot tokens if you want notifications
+# 4. Set up webhooks for external system integration
+# 5. Use proxies if needed for additional security
+# 6. Adjust repeat_interval_in_sec based on your needs (minimum 20 seconds recommended)
+
+# Security Notes:
+# - Never commit config.yml to version control
+# - Use strong passwords and enable 2FA on bank accounts
+# - Consider using environment variables for sensitive data
+# - Regularly rotate bot tokens and webhook secrets
