@@ -64,18 +64,27 @@ export class GatesController {
       }
       
       const gate = vcbGates[0];
+      console.log('Testing VCB connection for gateway:', gate.getName());
       const result = await gate.getHistory();
+      console.log('VCB Test result count:', result.length);
+      
+      if (result.length > 0) {
+        console.log('Sample transaction:', JSON.stringify(result[0], null, 2));
+      }
       
       return {
         success: true,
         gatewayName: gate.getName(),
         transactionCount: result.length,
-        transactions: result.slice(0, 3) // Show first 3 transactions only
+        transactions: result.slice(0, 5), // Show first 5 transactions
+        sampleTransaction: result.length > 0 ? result[0] : null
       };
     } catch (error) {
+      console.error('VCB Test error:', error);
       return {
         success: false,
         error: error.message,
+        stack: error.stack?.substring(0, 500),
         details: 'Check logs for more information'
       };
     }

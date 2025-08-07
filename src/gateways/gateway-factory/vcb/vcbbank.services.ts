@@ -222,7 +222,7 @@ export class VCBBankService extends Gate {
       };
 
       // Handle VCB error responses
-      if (!data || data.code !== undefined) {
+      if (!data || (data.code !== undefined && data.code !== '00')) {
         if (data?.code === '108') {
           this.error108Count++;
           const errorMsg = `VCB Multiple Device Access Detected (${this.error108Count}/3) - Account: ${this.config.account}`;
