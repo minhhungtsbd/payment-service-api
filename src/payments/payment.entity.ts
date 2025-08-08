@@ -17,7 +17,7 @@ export class PaymentEntity {
   @Column({ type: 'decimal', precision: 15, scale: 2 })
   amount: number;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'datetime' })
   date: Date;
 
   @Column({ type: 'enum', enum: GateType })
@@ -26,6 +26,6 @@ export class PaymentEntity {
   @Column({ type: 'varchar', length: 50 })
   account_receiver: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'datetime' })
   created_at: Date;
 } 

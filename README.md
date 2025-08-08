@@ -237,6 +237,24 @@ GET https://apibank.cloudmini.net/admin/queues
 # Truy cập: https://apibank.cloudmini.net/admin/queues
 ```
 
+#### Disk Space Monitoring
+
+The system includes an automatic disk space monitor that will send alerts to your Telegram bot when disk space runs low.
+
+```bash
+# Manual check of disk space
+node scripts/disk-monitor.js
+
+# Setup the automatic monitor (runs every 5 minutes)
+bash scripts/setup-disk-monitor.sh
+```
+
+Alerts are sent when:
+- Warning: Disk usage exceeds 80%
+- Critical: Disk usage exceeds 90%
+
+Alerts include details about disk usage, Docker space usage, and recommended cleanup actions.
+
 ## 🔧 Docker Commands
 
 ### Development Commands
@@ -261,14 +279,20 @@ docker-compose up --build app
 ### Database Commands
 
 ```bash
-# Connect to PostgreSQL
-docker exec -it payment-service_postgres_1 psql -U postgres -d payment_service
+# Connect to MySQL
+docker compose exec mysql mysql -u root -p payment_service
+# Password: secure_mysql_password_2025
 
 # Backup database
-docker exec payment-service_postgres_1 pg_dump -U postgres payment_service > backup.sql
+docker compose exec mysql mysqldump -u root -p payment_service > backup.sql
+# Password: secure_mysql_password_2025
 
 # Restore database
-docker exec -i payment-service_postgres_1 psql -U postgres -d payment_service < backup.sql
+docker compose exec -i mysql mysql -u root -p payment_service < backup.sql
+# Password: secure_mysql_password_2025
+
+# Show tables
+docker compose exec mysql mysql -u root -p -e "USE payment_service; SHOW TABLES;"
 ```
 
 ### Redis Commands
