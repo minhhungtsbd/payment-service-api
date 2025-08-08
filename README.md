@@ -67,7 +67,7 @@ environment:
   - DB_HOST=mysql
   - DB_PORT=3306
   - DB_USER=root
-  - DB_PASSWORD=secure_mysql_password_2025
+  - DB_PASSWORD=your_mysql_password
   - DB_DATABASE=payment_service
   - CAPTCHA_API_BASE_URL=http://captcha-resolver:1234
   - REDIS_HOST=redis
@@ -283,15 +283,15 @@ docker-compose up --build app
 ```bash
 # Connect to MySQL
 docker compose exec mysql mysql -u root -p payment_service
-# Password: secure_mysql_password_2025
+# Enter your MySQL password when prompted
 
 # Backup database
 docker compose exec mysql mysqldump -u root -p payment_service > backup.sql
-# Password: secure_mysql_password_2025
+# Enter your MySQL password when prompted
 
 # Restore database
 docker compose exec -i mysql mysql -u root -p payment_service < backup.sql
-# Password: secure_mysql_password_2025
+# Enter your MySQL password when prompted
 
 # Show tables
 docker compose exec mysql mysql -u root -p -e "USE payment_service; SHOW TABLES;"
@@ -537,19 +537,66 @@ Complete step-by-step guide for deploying on a new Ubuntu 22.04 VPS:
 sudo apt update && sudo apt upgrade -y
 
 # Install required packages
-sudo apt install -y curl wget git ufw
+sudo apt install -y curl wget git iptables-persistent
 
-# Set up firewall (allow SSH first!)
-sudo ufw allow ssh
-sudo ufw enable
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
+# Set up iptables firewall with IP whitelist
+# Clear existing rules
+sudo iptables -F
+sudo iptables -X
+sudo iptables -t nat -F
+sudo iptables -t nat -X
+sudo iptables -t mangle -F
+sudo iptables -t mangle -X
 
-# Explicitly deny database ports (security)
-sudo ufw deny 3306/tcp     # MySQL
-sudo ufw deny 6379/tcp     # Redis
-sudo ufw deny 5432/tcp     # PostgreSQL
-sudo ufw reload
+# Set default policies
+sudo iptables -P INPUT DROP
+sudo iptables -P FORWARD DROP
+sudo iptables -P OUTPUT ACCEPT
+
+# Allow loopback
+sudo iptables -I INPUT -i lo -j ACCEPT
+
+# Allow established connections
+sudo iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+# Allow SSH from whitelisted IPs only
+sudo iptables -A INPUT -p tcp --dport 22 -s 51.79.234.1 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 22 -s 5.223.47.125 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 22 -s 212.32.99.122 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 22 -s 116.118.44.60 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 22 -s 202.158.246.88 -j ACCEPT
+
+# Allow HTTP/HTTPS from whitelisted IPs only
+sudo iptables -A INPUT -p tcp --dport 80 -s 51.79.234.1 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 80 -s 5.223.47.125 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 80 -s 212.32.99.122 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 80 -s 116.118.44.60 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 80 -s 202.158.246.88 -j ACCEPT
+
+sudo iptables -A INPUT -p tcp --dport 443 -s 51.79.234.1 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 443 -s 5.223.47.125 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 443 -s 212.32.99.122 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 443 -s 116.118.44.60 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 443 -s 202.158.246.88 -j ACCEPT
+
+# Allow application port from whitelisted IPs only
+sudo iptables -A INPUT -p tcp --dport 3000 -s 51.79.234.1 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 3000 -s 5.223.47.125 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 3000 -s 212.32.99.122 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 3000 -s 116.118.44.60 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 3000 -s 202.158.246.88 -j ACCEPT
+
+# Explicitly drop database ports (security)
+sudo iptables -A INPUT -p tcp --dport 3306 -j DROP  # MySQL
+sudo iptables -A INPUT -p tcp --dport 6379 -j DROP  # Redis
+sudo iptables -A INPUT -p tcp --dport 5432 -j DROP  # PostgreSQL
+
+# Save iptables rules
+sudo netfilter-persistent save
+sudo netfilter-persistent reload
+
+# View current rules
+sudo iptables -L -n
 ```
 
 ### 2. Install Docker
@@ -629,17 +676,14 @@ bash scripts/setup-disk-monitor.sh
 node scripts/disk-monitor.js
 ```
 
-### 8. Configure Firewall for Production
+### 8. Verify Firewall Configuration
 ```bash
-# Allow your application port
-sudo ufw allow 3000/tcp
+# Firewall is already configured with iptables in Step 1
+# Verify current iptables rules
+sudo iptables -L -n
 
-# If using Nginx (recommended for production)
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-
-# Check firewall status
-sudo ufw status
+# Check that only whitelisted IPs can access ports
+sudo iptables -L INPUT -n --line-numbers
 ```
 
 ### 9. Optional: Set up Nginx (Production)
@@ -712,8 +756,8 @@ sudo nano /usr/local/bin/backup-payment-db.sh
 BACKUP_DIR="/var/backups/payment-service"
 DATE=$(date +%Y%m%d_%H%M%S)
 mkdir -p $BACKUP_DIR
-cd /var/www/payment-service
-docker compose exec mysql mysqldump -u root -psecure_mysql_password_2025 payment_service > "$BACKUP_DIR/payment_service_$DATE.sql"
+cd /var/www/payment-service-api
+docker compose exec mysql mysqldump -u root -p payment_service > "$BACKUP_DIR/payment_service_$DATE.sql"
 # Keep only last 7 days of backups
 find $BACKUP_DIR -name "*.sql" -mtime +7 -delete
 
@@ -743,8 +787,11 @@ docker compose logs --tail=50 app
 crontab -l
 
 # ✅ Security Verification
-# Verify firewall is active
-sudo ufw status verbose
+# Verify iptables firewall is active
+sudo iptables -L -n
+
+# ✅ Verify whitelisted IPs are configured
+sudo iptables -L INPUT -n | grep -E "(51.79.234.1|5.223.47.125|212.32.99.122|116.118.44.60|202.158.246.88)"
 
 # ✅ Verify no databases are exposed to internet
 sudo netstat -tlnp | grep -E "(3306|6379|5432)"
@@ -762,9 +809,10 @@ free -h
 ```
 
 ### 🔐 Security Notes
-- ✅ MySQL is secured with strong password: `secure_mysql_password_2025`
-- ✅ Databases are not exposed to the internet (internal Docker network only)
-- ✅ Firewall is configured to allow only necessary ports
+- ✅ MySQL is secured with strong password and network isolation
+- ✅ Databases are not exposed to the internet (internal Docker network only) 
+- ✅ iptables firewall configured with IP whitelist (5 trusted IPs only)
+- ✅ Database ports explicitly blocked (MySQL, Redis, PostgreSQL)
 - ✅ Disk monitoring sends alerts before problems occur
 - ✅ Automatic database backups are scheduled
 
