@@ -544,6 +544,12 @@ sudo ufw allow ssh
 sudo ufw enable
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
+
+# Explicitly deny database ports (security)
+sudo ufw deny 3306/tcp     # MySQL
+sudo ufw deny 6379/tcp     # Redis
+sudo ufw deny 5432/tcp     # PostgreSQL
+sudo ufw reload
 ```
 
 ### 2. Install Docker
@@ -644,17 +650,40 @@ sudo apt install -y nginx
 # Create Nginx configuration
 sudo nano /etc/nginx/sites-available/payment-service
 
-# Example configuration:
+# Example configuration with security:
 server {
     listen 80;
-    server_name your-domain.com;
-    
-    location / {
-        proxy_pass http://localhost:3000;
+    server_name your-domain.com;  # Replace with your domain
+
+    # Security headers
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-XSS-Protection "1; mode=block";
+
+    # Payment API (restrict by IP)
+    location /payments {
+        allow YOUR.IP.ADDRESS.HERE;  # Replace with your IP
+        deny all;
+        
+        proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Gateway management
+    location /gateways {
+        allow YOUR.IP.ADDRESS.HERE;  # Replace with your IP
+        deny all;
+        proxy_pass http://127.0.0.1:3000;
+    }
+
+    # Admin dashboard
+    location /admin {
+        allow YOUR.IP.ADDRESS.HERE;  # Replace with your IP
+        deny all;
+        proxy_pass http://127.0.0.1:3000;
     }
 }
 
@@ -712,6 +741,24 @@ docker compose logs --tail=50 app
 
 # Check cron jobs
 crontab -l
+
+# ✅ Security Verification
+# Verify firewall is active
+sudo ufw status verbose
+
+# ✅ Verify no databases are exposed to internet
+sudo netstat -tlnp | grep -E "(3306|6379|5432)"
+# Should show only 127.0.0.1 or no results
+
+# ✅ Test basic gateway functionality
+curl http://localhost:3000/gateways/vcb-status
+
+# ✅ Verify monitoring logs
+tail -5 /var/log/disk-monitor.log
+
+# ✅ Check system resources
+df -h
+free -h
 ```
 
 ### 🔐 Security Notes
