@@ -5,13 +5,15 @@ Hệ thống quản lý giao dịch ngân hàng tự động với hỗ trợ nh
 ## ✨ Tính năng
 
 - 🔄 **Tự động scraping giao dịch** từ nhiều ngân hàng (VCB, MB, TPBank, ACB)
-- 💾 **Lưu trữ PostgreSQL** với tự động cleanup (max 500 giao dịch hoặc 3 tháng)
+- 💾 **Lưu trữ MySQL** với tự động cleanup (max 500 giao dịch hoặc 3 tháng)
 - 📊 **RESTful API** để truy vấn và quản lý giao dịch
 - 🤖 **Bot notifications** (Telegram, Discord) với queue system
 - 🔗 **Webhook support** để tích hợp với hệ thống khác
 - 🔐 **Proxy & Captcha solver** tích hợp sẵn
 - 📈 **Queue dashboard** để monitor jobs
 - ⚡ **Redis queue** cho reliability và retry logic
+- 🔐 **Secure MySQL** với mật khẩu mạnh và network isolation
+- 📊 **Disk space monitoring** với Telegram alerts
 
 ## 🚀 Cài đặt và Chạy
 
@@ -24,8 +26,8 @@ Hệ thống quản lý giao dịch ngân hàng tự động với hỗ trợ nh
 
 ```bash
 # 1. Clone repository
-git clone <repository-url>
-cd payment-service
+git clone https://github.com/minhhungtsbd/payment-service-api.git
+cd payment-service-api
 
 # 2. Cấu hình ngân hàng (Bắt buộc)
 cp config/config.example.yml config/config.yml
@@ -62,11 +64,11 @@ docker system prune -af
 ```yaml
 environment:
   - PORT=3000
-  - POSTGRES_HOST=postgres
-  - POSTGRES_PORT=5432
-  - POSTGRES_USER=postgres
-  - POSTGRES_PASSWORD=password
-  - POSTGRES_DB=payment_service
+  - DB_HOST=mysql
+  - DB_PORT=3306
+  - DB_USER=root
+  - DB_PASSWORD=secure_mysql_password_2025
+  - DB_DATABASE=payment_service
   - CAPTCHA_API_BASE_URL=http://captcha-resolver:1234
   - REDIS_HOST=redis
   - REDIS_PORT=6379
@@ -357,19 +359,19 @@ Dockerfile                 # 📦 App container
 
 ## 🗄️ Database Schema
 
-### PostgreSQL Tables
+### MySQL Tables
 
 ```sql
 -- Payments table
 CREATE TABLE payments (
-  id SERIAL PRIMARY KEY,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   transaction_id VARCHAR(255) UNIQUE NOT NULL,
   content TEXT NOT NULL,
   amount DECIMAL(15,2) NOT NULL,
   date TIMESTAMP NOT NULL,
   gate VARCHAR(50) NOT NULL, -- VCBBANK, MBBANK, etc.
   account_receiver VARCHAR(50) NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW()
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Indexes for performance
@@ -429,10 +431,10 @@ docker-compose restart redis
 
 #### Database connection errors
 ```bash
-# Error: Connection to PostgreSQL failed
-# Solution: Check PostgreSQL service
-docker-compose restart postgres
-docker-compose logs postgres
+# Error: Connection to MySQL failed
+# Solution: Check MySQL service
+docker-compose restart mysql
+docker-compose logs mysql
 ```
 
 #### High memory usage
@@ -577,9 +579,9 @@ sudo mkdir -p /var/www
 cd /var/www
 
 # Clone your repository
-sudo git clone https://github.com/your-username/payment-service.git
-sudo chown -R $USER:$USER /var/www/payment-service
-cd payment-service
+sudo git clone https://github.com/minhhungtsbd/payment-service-api.git
+sudo chown -R $USER:$USER /var/www/payment-service-api
+cd payment-service-api
 
 # Configure bank credentials
 cp config/config.example.yml config/config.yml
