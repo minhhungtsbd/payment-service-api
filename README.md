@@ -525,6 +525,233 @@ done
 - [ ] **Firewall rules** configured
 - [ ] **Bot tokens** configured (if using notifications)
 
+## 🖥️ Fresh VPS Deployment (Ubuntu 22.04)
+
+Complete step-by-step guide for deploying on a new Ubuntu 22.04 VPS:
+
+### 1. System Preparation
+```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install required packages
+sudo apt install -y curl wget git ufw
+
+# Set up firewall (allow SSH first!)
+sudo ufw allow ssh
+sudo ufw enable
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+```
+
+### 2. Install Docker
+```bash
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+
+# Install Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+
+# Logout and login again, then verify
+docker --version
+docker-compose --version
+```
+
+### 3. Install Node.js (for disk monitoring)
+```bash
+# Install Node.js and npm
+sudo apt install -y nodejs npm
+
+# Verify installation
+node --version  # Should show v18.x or higher
+npm --version
+```
+
+### 4. Clone Repository and Configure
+```bash
+# Create project directory
+sudo mkdir -p /var/www
+cd /var/www
+
+# Clone your repository
+sudo git clone https://github.com/your-username/payment-service.git
+sudo chown -R $USER:$USER /var/www/payment-service
+cd payment-service
+
+# Configure bank credentials
+cp config/config.example.yml config/config.yml
+nano config/config.yml  # Edit with your bank credentials
+```
+
+### 5. Run Migration Script
+```bash
+# Run the MySQL migration and deployment script
+bash scripts/migrate-to-mysql.sh
+```
+
+This script will:
+- ✅ Stop any existing services
+- 🗑️ Clean up PostgreSQL data (if migrating)
+- 🔐 Set up secure MySQL with proper passwords
+- 🚀 Start all services (app, MySQL, Redis, captcha-resolver)
+- ✅ Verify database connection and security
+- 📊 Show service status
+
+### 6. Verify Deployment
+```bash
+# Check service status
+docker compose ps
+
+# Test API endpoint
+curl http://localhost:3000/payments/stats
+
+# Check application logs
+docker compose logs -f app
+```
+
+### 7. Set up Disk Monitoring
+```bash
+# Set up automatic disk space monitoring with Telegram alerts
+bash scripts/setup-disk-monitor.sh
+
+# Test disk monitor manually
+node scripts/disk-monitor.js
+```
+
+### 8. Configure Firewall for Production
+```bash
+# Allow your application port
+sudo ufw allow 3000/tcp
+
+# If using Nginx (recommended for production)
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# Check firewall status
+sudo ufw status
+```
+
+### 9. Optional: Set up Nginx (Production)
+```bash
+# Install Nginx
+sudo apt install -y nginx
+
+# Create Nginx configuration
+sudo nano /etc/nginx/sites-available/payment-service
+
+# Example configuration:
+server {
+    listen 80;
+    server_name your-domain.com;
+    
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# Enable the site
+sudo ln -s /etc/nginx/sites-available/payment-service /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 10. Set up SSL (Optional but Recommended)
+```bash
+# Install Certbot
+sudo apt install -y certbot python3-certbot-nginx
+
+# Get SSL certificate
+sudo certbot --nginx -d your-domain.com
+```
+
+### 11. Schedule Daily Backups
+```bash
+# Create backup script
+sudo nano /usr/local/bin/backup-payment-db.sh
+
+# Add this content:
+#!/bin/bash
+BACKUP_DIR="/var/backups/payment-service"
+DATE=$(date +%Y%m%d_%H%M%S)
+mkdir -p $BACKUP_DIR
+cd /var/www/payment-service
+docker compose exec mysql mysqldump -u root -psecure_mysql_password_2025 payment_service > "$BACKUP_DIR/payment_service_$DATE.sql"
+# Keep only last 7 days of backups
+find $BACKUP_DIR -name "*.sql" -mtime +7 -delete
+
+# Make executable
+sudo chmod +x /usr/local/bin/backup-payment-db.sh
+
+# Add to crontab (daily at 2 AM)
+sudo crontab -e
+# Add: 0 2 * * * /usr/local/bin/backup-payment-db.sh
+```
+
+### 12. Verify Everything is Working
+```bash
+# Check all services
+docker compose ps
+
+# Test API
+curl http://localhost:3000/payments/stats
+
+# Check disk monitor
+node scripts/disk-monitor.js
+
+# Check logs
+docker compose logs --tail=50 app
+
+# Check cron jobs
+crontab -l
+```
+
+### 🔐 Security Notes
+- ✅ MySQL is secured with strong password: `secure_mysql_password_2025`
+- ✅ Databases are not exposed to the internet (internal Docker network only)
+- ✅ Firewall is configured to allow only necessary ports
+- ✅ Disk monitoring sends alerts before problems occur
+- ✅ Automatic database backups are scheduled
+
+### 🚨 Troubleshooting
+
+#### If services fail to start:
+```bash
+# Check logs
+docker compose logs app
+docker compose logs mysql
+
+# Restart services
+docker compose restart
+```
+
+#### If disk space is full:
+```bash
+# Clean up Docker
+docker system prune -f
+
+# Check disk usage
+df -h
+
+# Manual cleanup
+curl http://localhost:3000/payments/cleanup
+```
+
+#### If Node.js is missing:
+```bash
+# Install Node.js
+sudo apt install -y nodejs npm
+node --version
+```
+
+Your payment service is now fully deployed and secure! 🎉
+
 ## 📋 API Testing Examples
 
 ```bash
