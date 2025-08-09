@@ -66,12 +66,7 @@ $SUDO iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 echo -e "${YELLOW}🔐 Setting up IP whitelist...${NC}"
 # Define whitelisted IPs
 declare -a WHITELISTED_IPS=(
-    "51.79.234.1"
-    "5.223.47.125"
-    "212.32.99.122"
-    "116.118.44.60"
-	"103.183.121.6"
-    "202.158.246.88"
+    "0.0.0.0/0"  # Demo: Allow all IPs
 )
 
 # Allow SSH from whitelisted IPs only
@@ -123,7 +118,7 @@ echo ""
 echo -e "${GREEN}🔐 Security Summary:${NC}"
 echo "  ✅ UFW disabled (prevents conflicts with iptables)"
 echo "  ✅ Default DENY policy active"
-echo "  ✅ 5 whitelisted IPs configured:"
+echo "  ✅ Demo configuration - all IPs allowed:"
 for ip in "${WHITELISTED_IPS[@]}"; do
     echo "     - $ip"
 done
