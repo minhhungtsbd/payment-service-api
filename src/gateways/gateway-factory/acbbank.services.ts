@@ -63,6 +63,10 @@ export class ACBBankService extends Gate {
     const rows = table.querySelectorAll('tr');
     const payments = [];
     console.log(`[ACB Debug] Found ${rows.length} rows in history table`);
+    
+    // Debug: print entire table structure
+    console.log(`[ACB Debug] Full table HTML:\n${table.toString()}`);
+    
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const tds = row.querySelectorAll('td');
@@ -78,6 +82,16 @@ export class ACBBankService extends Gate {
         console.log(`  - Column 3: "${tds[3].text}"`);
         console.log(`  - Column 4 (Amount): "${tds[4].text}"`);
         console.log(`  - Column 5: "${tds[5].text}"`);
+        
+        // Check if next row contains description
+        if (i + 1 < rows.length) {
+          const nextRow = rows[i + 1];
+          const nextTds = nextRow.querySelectorAll('td');
+          console.log(`[ACB Debug] Next row has ${nextTds.length} cells`);
+          if (nextTds.length > 0) {
+            console.log(`[ACB Debug] Next row content: "${nextRow.text}"`);
+          }
+        }
         
         payments.push({
           date: moment.tz(addYear, 'DD/MM/YYYY', 'Asia/Ho_Chi_Minh').toDate(),
