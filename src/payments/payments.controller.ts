@@ -81,4 +81,15 @@ export class PaymentsController {
     
     return this.paymentService.getPaymentsFormatted(limitNum, pageNum);
   }
+
+  @Get('format_thueapi')
+  async getPaymentsThueAPI(
+    @Query('limit') limit?: string,
+    @Query('page') page?: string,
+  ) {
+    const limitNum = limit ? parseInt(limit) : undefined;
+    const pageNum = page ? parseInt(page) : 1;
+    
+    return this.paymentService.getPaymentsThueAPI(limitNum, pageNum);
+  }
 }

@@ -219,6 +219,45 @@ GET https://apibank.cloudmini.net/payments/format_web2m?limit=20&page=1
 }
 ```
 
+#### Lấy giao dịch với định dạng ThuEAPI
+```bash
+# Local development
+GET http://localhost:3000/payments/format_thueapi
+GET http://localhost:3000/payments/format_thueapi?limit=20&page=1
+
+# Production
+GET https://apibank.cloudmini.net/payments/format_thueapi
+GET https://apibank.cloudmini.net/payments/format_thueapi?limit=20&page=1
+
+# Response
+{
+  "time": "2025-02-02T18:10:19.020+07:00",
+  "codeStatus": 200,
+  "messageStatus": "success",
+  "description": "",
+  "took": 126,
+  "data": [
+    {
+      "amount": 20000,
+      "accountName": "TKTT EBIZ KHTN (CN) VND",
+      "receiverName": "",
+      "transactionNumber": 3005,
+      "description": "IDIV249END GD 379285-011625 09:56:51",
+      "bankName": "",
+      "isOnline": false,
+      "postingDate": 1736960400000,
+      "accountOwner": null,
+      "type": "IN",
+      "receiverAccountNumber": "",
+      "currency": "VND",
+      "account": 12574877,
+      "activeDatetime": 1736996213000,
+      "effectiveDate": 1736960400000
+    }
+  ]
+}
+```
+
 ### 🏦 Gateway Management
 
 #### Tạm dừng gateway
@@ -285,8 +324,9 @@ Alerts include details about disk usage, Docker space usage, and recommended cle
 
 ## 🔧 Docker Commands
 
-### Development Commands
+### Khởi động và Quản lý Services
 
+**Cách 1: Sử dụng docker-compose (cũ)**
 ```bash
 # Khởi động development mode
 docker-compose up --build
@@ -300,8 +340,32 @@ docker-compose logs -f app
 # Restart một service
 docker-compose restart app
 
-# Rebuild một service
-docker-compose up --build app
+# Dừng services
+docker-compose down
+```
+
+**Cách 2: Sử dụng docker compose (mới - recommended)**
+```bash
+# Khởi động development mode
+docker compose up --build
+
+# Chạy background
+docker compose up --build -d
+
+# Xem logs real-time
+docker compose logs -f app
+
+# Restart một service
+docker compose restart app
+
+# Rebuild app service (dừng, build lại, khởi động, xem logs)
+docker compose stop app
+docker compose build --no-cache app
+docker compose up -d app
+docker compose logs -f app
+
+# Dừng services
+docker compose down
 ```
 
 ### Database Commands
@@ -327,23 +391,20 @@ docker compose exec mysql mysql -u root -p -e "USE payment_service; SHOW TABLES;
 
 ```bash
 # Connect to Redis CLI
-docker exec -it payment-service_redis_1 redis-cli
+docker compose exec redis redis-cli
 
 # Clear all Redis data
-docker exec payment-service_redis_1 redis-cli FLUSHALL
+docker compose exec redis redis-cli FLUSHALL
 
 # Monitor Redis commands
-docker exec payment-service_redis_1 redis-cli MONITOR
+docker compose exec redis redis-cli MONITOR
 ```
 
 ### Cleanup Commands
 
 ```bash
-# Stop và xóa containers
-docker-compose down
-
 # Xóa volumes (sẽ mất data!)
-docker-compose down -v
+docker compose down -v
 
 # Xóa images
 docker rmi payment-service_app
@@ -452,27 +513,24 @@ open https://apibank.cloudmini.net/admin/queues
 ```bash
 # Error: ECONNREFUSED 127.0.0.1:6379
 # Solution: Ensure Redis service is running
-docker-compose restart redis
+docker compose restart redis
 ```
 
 #### Database connection errors
 ```bash
 # Error: Connection to MySQL failed
 # Solution: Check MySQL service
-docker-compose restart mysql
-docker-compose logs mysql
+docker compose restart mysql
+docker compose logs mysql
 ```
 
 #### High memory usage
 ```bash
 # Clear Redis queues
-docker exec payment-service_redis_1 redis-cli FLUSHALL
+docker compose exec redis redis-cli FLUSHALL
 
 # Manual cleanup old payments (local)
 curl http://localhost:3000/payments/cleanup
-
-# Manual cleanup old payments (production)
-curl https://apibank.cloudmini.net/payments/cleanup
 ```
 
 ### Performance Tuning
@@ -531,7 +589,7 @@ server {
 #!/bin/bash
 # monitor.sh - Auto-restart on failures
 while true; do
-    if ! curl -s https://apibank.cloudmini.net/payments/stats > /dev/null; then
+    if ! curl -s http://localhost:3000/payments/stats > /dev/null; then
         echo "Service down, restarting..."
         docker-compose restart app
     fi
@@ -920,30 +978,17 @@ curl http://localhost:3000/payments/real
 # Check statistics
 curl http://localhost:3000/payments/stats
 
+# Format Web2M
+curl http://localhost:3000/payments/format_web2m
+
+# Format ThuEAPI
+curl http://localhost:3000/payments/format_thueapi
+
 # Manual cleanup
 curl http://localhost:3000/payments/cleanup
 
 # Stop gateway temporarily
 curl "http://localhost:3000/gateways/stop-gate?name=vcb_bank_1&time_in_sec=300"
-
-# === PRODUCTION ===
-# Test basic API
-curl https://apibank.cloudmini.net/payments
-
-# Test with pagination
-curl "https://apibank.cloudmini.net/payments?limit=10&page=1"
-
-# Get real-time data
-curl https://apibank.cloudmini.net/payments/real
-
-# Check statistics
-curl https://apibank.cloudmini.net/payments/stats
-
-# Manual cleanup
-curl https://apibank.cloudmini.net/payments/cleanup
-
-# Stop gateway temporarily
-curl "https://apibank.cloudmini.net/gateways/stop-gate?name=vcb_bank_1&time_in_sec=300"
 ```
 
 ## 🤝 Support

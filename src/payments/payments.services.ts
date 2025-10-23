@@ -178,4 +178,38 @@ export class PaymentService implements OnApplicationBootstrap {
       transactions: transactions
     };
   }
+
+  async getPaymentsThueAPI(limit?: number, page: number = 1) {
+    const payments = await this.getPayments(limit, page);
+    const startTime = Date.now();
+    
+    const data = payments.map(payment => ({
+      amount: Number(payment.amount),
+      accountName: payment.gate,
+      receiverName: '',
+      transactionNumber: parseInt(payment.transaction_id.split('-')[1] || '0'),
+      description: payment.content,
+      bankName: '',
+      isOnline: false,
+      postingDate: new Date(payment.date).getTime(),
+      accountOwner: null,
+      type: 'IN',
+      receiverAccountNumber: '',
+      currency: 'VND',
+      account: parseInt(payment.account_receiver),
+      activeDatetime: new Date(payment.date).getTime(),
+      effectiveDate: new Date(payment.date).getTime()
+    }));
+
+    const took = Date.now() - startTime;
+
+    return {
+      time: moment.tz(new Date(), 'Asia/Ho_Chi_Minh').format('YYYY-MM-DDTHH:mm:ss.SSSZ'),
+      codeStatus: 200,
+      messageStatus: 'success',
+      description: '',
+      took: took,
+      data: data
+    };
+  }
 }
