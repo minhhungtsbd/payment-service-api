@@ -66,7 +66,6 @@ $SUDO iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 echo -e "${YELLOW}🔐 Setting up IP whitelist...${NC}"
 # Define whitelisted IPs
 declare -a WHITELISTED_IPS=(
-    "0.0.0.0/0"
     "15.235.163.226"
     "103.183.121.6"
     "212.32.99.122"
