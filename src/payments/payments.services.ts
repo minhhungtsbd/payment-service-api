@@ -160,4 +160,22 @@ export class PaymentService implements OnApplicationBootstrap {
       account_receiver: payment.account_receiver,
     }));
   }
+
+  async getPaymentsFormatted(limit?: number, page: number = 1) {
+    const payments = await this.getPayments(limit, page);
+    
+    const transactions = payments.map(payment => ({
+      transactionID: parseInt(payment.transaction_id.split('-')[1] || '0'),
+      amount: Number(payment.amount),
+      description: payment.content,
+      transactionDate: moment.tz(payment.date, 'Asia/Ho_Chi_Minh').format('DD/MM/YYYY'),
+      type: 'IN'
+    }));
+
+    return {
+      status: true,
+      message: 'Thành công',
+      transactions: transactions
+    };
+  }
 }

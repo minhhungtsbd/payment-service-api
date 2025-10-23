@@ -70,4 +70,15 @@ export class PaymentsController {
       }
     };
   }
+
+  @Get('format_web2m')
+  async getPaymentsFormatted(
+    @Query('limit') limit?: string,
+    @Query('page') page?: string,
+  ) {
+    const limitNum = limit ? parseInt(limit) : undefined;
+    const pageNum = page ? parseInt(page) : 1;
+    
+    return this.paymentService.getPaymentsFormatted(limitNum, pageNum);
+  }
 }

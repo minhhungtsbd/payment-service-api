@@ -193,6 +193,32 @@ GET https://apibank.cloudmini.net/payments/cleanup
 }
 ```
 
+#### Lấy giao dịch với định dạng Web2M
+```bash
+# Local development
+GET http://localhost:3000/payments/format_web2m
+GET http://localhost:3000/payments/format_web2m?limit=20&page=1
+
+# Production
+GET https://apibank.cloudmini.net/payments/format_web2m
+GET https://apibank.cloudmini.net/payments/format_web2m?limit=20&page=1
+
+# Response
+{
+  "status": true,
+  "message": "Thành công",
+  "transactions": [
+    {
+      "transactionID": 6185,
+      "amount": 10000,
+      "description": "QR - IDIV752END GD 293402-041825 10:49:59",
+      "transactionDate": "18/04/2025",
+      "type": "IN"
+    }
+  ]
+}
+```
+
 ### 🏦 Gateway Management
 
 #### Tạm dừng gateway
@@ -537,7 +563,35 @@ Complete step-by-step guide for deploying on a new Ubuntu 22.04 VPS:
 sudo apt update && sudo apt upgrade -y
 
 # Install required packages
-sudo apt install -y curl wget git iptables-persistent
+sudo apt install -y curl wget git
+```
+
+#### 🔐 Firewall Setup (Automated)
+The project includes an automated firewall setup script with IP whitelist:
+
+```bash
+# Run the automated firewall setup
+bash scripts/setup-firewall.sh
+```
+
+This script will:
+- 💫 Disable UFW (if active) to prevent conflicts with iptables
+- ✅ Install `iptables-persistent` for saving rules
+- 🧹 Clear existing iptables rules
+- 🛡️ Set default DROP policies for incoming/forward traffic
+- 🔄 Allow loopback and established connections
+- 🔐 Whitelist 5 trusted IPs for SSH (22), HTTP (80), HTTPS (443), and API (3000)
+- 🛑 Explicitly block database ports (MySQL 3306, Redis 6379, PostgreSQL 5432)
+- 💾 Save and reload iptables rules
+- 📊 Display current firewall configuration
+
+#### Manual Firewall Setup (Alternative)
+<details>
+<summary>Click to expand manual firewall commands</summary>
+
+```bash
+# Install iptables-persistent
+sudo apt install -y iptables-persistent
 
 # Set up iptables firewall with IP whitelist
 # Clear existing rules
@@ -598,6 +652,7 @@ sudo netfilter-persistent reload
 # View current rules
 sudo iptables -L -n
 ```
+</details>
 
 ### 2. Install Docker
 ```bash
