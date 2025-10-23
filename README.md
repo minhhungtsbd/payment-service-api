@@ -809,8 +809,7 @@ sudo nano /etc/nginx/sites-available/payment-service
 
 # Example configuration with security:
 server {
-    listen 80;
-    server_name your-domain.com;  # Replace with your domain
+    server_name apibank.vpsfree.net;
 
     # Security headers
     add_header X-Frame-Options DENY;
@@ -819,7 +818,10 @@ server {
 
     # Payment API (restrict by IP)
     location /payments {
-        allow YOUR.IP.ADDRESS.HERE;  # Replace with your IP
+        allow 51.79.234.1;
+        allow 103.183.121.6;
+        allow 212.32.99.122;
+        allow 15.235.163.226;
         deny all;
         
         proxy_pass http://127.0.0.1:3000;
@@ -831,17 +833,45 @@ server {
 
     # Gateway management
     location /gateways {
-        allow YOUR.IP.ADDRESS.HERE;  # Replace with your IP
+        allow 51.79.234.1;
+        allow 103.183.121.6;
+        allow 212.32.99.122;
+        allow 15.235.163.226;
         deny all;
         proxy_pass http://127.0.0.1:3000;
     }
 
     # Admin dashboard
     location /admin {
-        allow YOUR.IP.ADDRESS.HERE;  # Replace with your IP
+        allow 51.79.234.1;
+        allow 103.183.121.6;
+        allow 212.32.99.122;
+        allow 15.235.163.226;
         deny all;
         proxy_pass http://127.0.0.1:3000;
     }
+
+	# Webhook endpoint
+	location /webhook {
+		proxy_pass http://127.0.0.1:3000;
+		proxy_set_header Host $host;
+		proxy_set_header X-Real-IP $remote_addr;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header X-Forwarded-Proto $scheme;
+	}
+
+}
+server {
+    if ($host = apibank.vpsfree.net) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    listen 80;
+    server_name apibank.vpsfree.net;
+    return 404; # managed by Certbot
+
+
 }
 
 # Enable the site
