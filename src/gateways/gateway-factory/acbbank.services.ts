@@ -62,34 +62,29 @@ export class ACBBankService extends Gate {
     const table = document.getElementById('table1');
     const rows = table.querySelectorAll('tr');
     const payments = [];
-    console.log(`[ACB Debug] Found ${rows.length} rows in history table`);
-    
-    // Debug: print entire table structure
-    console.log(`[ACB Debug] Full table HTML:\n${table.toString()}`);
-    
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const tds = row.querySelectorAll('td');
+      
+      // Main transaction row has 6 columns
       if (tds.length == 6) {
         const date = tds[0].text.split('-');
         const addYear = `${date[0]}/${date[1]}/20${date[2]}`;
         
-        // Debug log for each transaction
-        console.log(`[ACB Debug] Transaction ${i}:`);
-        console.log(`  - Column 0 (Date): "${tds[0].text}"`);
-        console.log(`  - Column 1 (ID): "${tds[1].text}"`);
-        console.log(`  - Column 2 (Content): "${tds[2].text}"`);
-        console.log(`  - Column 3: "${tds[3].text}"`);
-        console.log(`  - Column 4 (Amount): "${tds[4].text}"`);
-        console.log(`  - Column 5: "${tds[5].text}"`);
+        // Get description from next row if it exists
+        let description = tds[3].text.trim(); // Default: Ghi nợ column
         
-        // Check if next row contains description
         if (i + 1 < rows.length) {
           const nextRow = rows[i + 1];
           const nextTds = nextRow.querySelectorAll('td');
-          console.log(`[ACB Debug] Next row has ${nextTds.length} cells`);
-          if (nextTds.length > 0) {
-            console.log(`[ACB Debug] Next row content: "${nextRow.text}"`);
+          // Description row has 3 cells with colspan
+          if (nextTds.length === 3) {
+            // The actual description is in the second td with colspan
+            const descTd = nextTds[1];
+            if (descTd) {
+              description = descTd.text.trim();
+            }
           }
         }
         
@@ -97,7 +92,7 @@ export class ACBBankService extends Gate {
           date: moment.tz(addYear, 'DD/MM/YYYY', 'Asia/Ho_Chi_Minh').toDate(),
           transaction_id: 'acbbank-' + tds[1].text,
           amount: parseInt(tds[4].text.replace(/\./g, '')),
-          content: tds[2].text,
+          content: description,
           gate: GateType.ACBBANK,
           account_receiver: this.config.account,
         });
