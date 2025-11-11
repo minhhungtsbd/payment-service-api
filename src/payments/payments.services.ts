@@ -139,10 +139,20 @@ export class PaymentService implements OnApplicationBootstrap {
       .getOne();
   }
 
-  async getPayments(limit?: number, page: number = 1): Promise<Payment[]> {
+  async getPayments(limit?: number, page: number = 1, account?: string, gate?: string): Promise<Payment[]> {
     const queryBuilder = this.paymentRepository
       .createQueryBuilder('payment')
       .orderBy('payment.date', 'DESC');
+
+    // Filter theo account nếu có
+    if (account) {
+      queryBuilder.andWhere('payment.account_receiver = :account', { account });
+    }
+
+    // Filter theo gate nếu có
+    if (gate) {
+      queryBuilder.andWhere('payment.gate = :gate', { gate });
+    }
 
     if (limit) {
       const offset = (page - 1) * limit;
@@ -161,8 +171,8 @@ export class PaymentService implements OnApplicationBootstrap {
     }));
   }
 
-  async getPaymentsFormatted(limit?: number, page: number = 1) {
-    const payments = await this.getPayments(limit, page);
+  async getPaymentsFormatted(limit?: number, page: number = 1, account?: string, gate?: string) {
+    const payments = await this.getPayments(limit, page, account, gate);
     
     const transactions = payments.map(payment => ({
       transactionID: parseInt(payment.transaction_id.split('-')[1] || '0'),
@@ -179,8 +189,8 @@ export class PaymentService implements OnApplicationBootstrap {
     };
   }
 
-  async getPaymentsThueAPI(limit?: number, page: number = 1) {
-    const payments = await this.getPayments(limit, page);
+  async getPaymentsThueAPI(limit?: number, page: number = 1, account?: string, gate?: string) {
+    const payments = await this.getPayments(limit, page, account, gate);
     const startTime = Date.now();
     
     const data = payments.map(payment => ({

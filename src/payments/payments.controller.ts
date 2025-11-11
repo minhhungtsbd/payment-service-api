@@ -21,11 +21,13 @@ export class PaymentsController {
   getPayments(
     @Query('limit') limit?: string,
     @Query('page') page?: string,
+    @Query('account') account?: string,
+    @Query('gate') gate?: string,
   ) {
     const limitNum = limit ? parseInt(limit) : undefined;
     const pageNum = page ? parseInt(page) : 1;
     
-    return this.paymentService.getPayments(limitNum, pageNum);
+    return this.paymentService.getPayments(limitNum, pageNum, account, gate);
   }
 
   @Get('real')
@@ -75,21 +77,25 @@ export class PaymentsController {
   async getPaymentsFormatted(
     @Query('limit') limit?: string,
     @Query('page') page?: string,
+    @Query('account') account?: string,
+    @Query('gate') gate?: string,
   ) {
     const limitNum = limit ? parseInt(limit) : undefined;
     const pageNum = page ? parseInt(page) : 1;
     
-    return this.paymentService.getPaymentsFormatted(limitNum, pageNum);
+    return this.paymentService.getPaymentsFormatted(limitNum, pageNum, account, gate);
   }
 
   @Get('format_thueapi')
   async getPaymentsThueAPI(
     @Query('limit') limit?: string,
     @Query('page') page?: string,
+    @Query('account') account?: string,
+    @Query('gate') gate?: string,
   ) {
     const limitNum = limit ? parseInt(limit) : undefined;
     const pageNum = page ? parseInt(page) : 1;
     
-    return this.paymentService.getPaymentsThueAPI(limitNum, pageNum);
+    return this.paymentService.getPaymentsThueAPI(limitNum, pageNum, account, gate);
   }
 }

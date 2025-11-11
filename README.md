@@ -130,6 +130,18 @@ GET http://localhost:3000/payments?limit=20&page=1
 GET https://apibank.cloudmini.net/payments
 GET https://apibank.cloudmini.net/payments?limit=20&page=1
 
+# Filter theo số tài khoản (account)
+GET http://localhost:3000/payments?account=49338
+GET http://localhost:3000/payments?account=18271121
+
+# Filter theo loại ngân hàng (gate)
+GET http://localhost:3000/payments?gate=ACBBANK
+GET http://localhost:3000/payments?gate=VCBBANK
+
+# Kết hợp filter với pagination
+GET http://localhost:3000/payments?account=49338&limit=50&page=1
+GET http://localhost:3000/payments?gate=ACBBANK&limit=100
+
 # Response
 {
   "transactions": [
@@ -203,6 +215,10 @@ GET http://localhost:3000/payments/format_web2m?limit=20&page=1
 GET https://apibank.cloudmini.net/payments/format_web2m
 GET https://apibank.cloudmini.net/payments/format_web2m?limit=20&page=1
 
+# Filter theo account hoặc gate
+GET http://localhost:3000/payments/format_web2m?account=49338
+GET http://localhost:3000/payments/format_web2m?gate=ACBBANK&limit=50
+
 # Response
 {
   "status": true,
@@ -228,6 +244,10 @@ GET http://localhost:3000/payments/format_thueapi?limit=20&page=1
 # Production
 GET https://apibank.cloudmini.net/payments/format_thueapi
 GET https://apibank.cloudmini.net/payments/format_thueapi?limit=20&page=1
+
+# Filter theo account hoặc gate
+GET http://localhost:3000/payments/format_thueapi?account=18271121
+GET http://localhost:3000/payments/format_thueapi?gate=VCBBANK&limit=100
 
 # Response
 {
@@ -1001,6 +1021,15 @@ curl http://localhost:3000/payments
 
 # Test with pagination
 curl "http://localhost:3000/payments?limit=10&page=1"
+
+# Filter by account
+curl "http://localhost:3000/payments?account=49338"
+
+# Filter by gate
+curl "http://localhost:3000/payments?gate=ACBBANK"
+
+# Combined filters
+curl "http://localhost:3000/payments?account=49338&limit=50&page=1"
 
 # Get real-time data
 curl http://localhost:3000/payments/real
