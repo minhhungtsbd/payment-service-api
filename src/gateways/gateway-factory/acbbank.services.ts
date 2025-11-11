@@ -88,14 +88,21 @@ export class ACBBankService extends Gate {
           }
         }
         
-        payments.push({
-          date: moment.tz(addYear, 'DD/MM/YYYY', 'Asia/Ho_Chi_Minh').toDate(),
-          transaction_id: 'acbbank-' + tds[1].text,
-          amount: parseInt(tds[4].text.replace(/\./g, '')),
-          content: description,
-          gate: GateType.ACBBANK,
-          account_receiver: this.config.account,
-        });
+        // Parse amount và validate
+        const amountText = tds[4].text.replace(/\./g, '').trim();
+        const amount = parseInt(amountText);
+        
+        // Chỉ thêm giao dịch nếu amount hợp lệ (là số và > 0)
+        if (!isNaN(amount) && amount > 0) {
+          payments.push({
+            date: moment.tz(addYear, 'DD/MM/YYYY', 'Asia/Ho_Chi_Minh').toDate(),
+            transaction_id: 'acbbank-' + tds[1].text,
+            amount: amount,
+            content: description,
+            gate: GateType.ACBBANK,
+            account_receiver: this.config.account,
+          });
+        }
       }
     }
 
